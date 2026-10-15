@@ -62,6 +62,7 @@ Built with **Node.js 24**, built-in SQLite (`node:sqlite`), **Leaflet.js** (Open
 
 ```
 easylivetrack-server/
+├── .github/workflows/ci.yml    # CI pipeline (Automated testing & Docker build verification)
 ├── Dockerfile                  # Production container definition (Node 24 Alpine)
 ├── docker-compose.yml          # Container orchestration (Node app + Caddy proxy)
 ├── Caddyfile                   # Reverse proxy configuration with auto-SSL & HTTP/3
