@@ -18,4 +18,4 @@ ENV PORT=5055 \
 
 EXPOSE 5055
 
-CMD ["node", "server.js"]
+CMD ["node", "src/index.js"]

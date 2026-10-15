@@ -58,6 +58,51 @@ Built with **Node.js 24**, built-in SQLite (`node:sqlite`), **Leaflet.js** (Open
 
 ---
 
+## 📁 Project Structure
+
+```
+easylivetrack-server/
+├── Dockerfile                  # Production container definition (Node 24 Alpine)
+├── docker-compose.yml          # Container orchestration (Node app + Caddy proxy)
+├── Caddyfile                   # Reverse proxy configuration with auto-SSL & HTTP/3
+├── .env.example                # Environment variables template
+├── .gitignore                  # Git ignore rules
+├── .dockerignore               # Docker build ignore rules
+├── package.json                # Project dependencies and npm scripts
+├── README.md                   # Documentation
+├── public/                     # Static frontend web viewer and assets
+│   ├── admin.html              # Administrator dashboard
+│   ├── index.html              # Main live track map
+│   ├── live.html               # Dedicated live session viewer
+│   ├── css/style.css           # Responsive dark theme styling
+│   ├── js/admin.js             # Admin UI controller
+│   ├── js/viewer.js            # Leaflet map and SSE real-time controller
+│   └── vendor/leaflet/         # Bundled offline Leaflet library
+├── src/                        # Backend application source code
+│   ├── index.js                # Server entry point & startup listener
+│   ├── app.js                  # Express application setup & middleware assembly
+│   ├── config.js               # Centralized environment configuration
+│   ├── db/
+│   │   ├── database.js         # SQLite connection & schema migration
+│   │   └── index.js            # Data access queries & prepared statements
+│   ├── middleware/
+│   │   ├── auth.js             # User API key and Admin session authentication
+│   │   └── rateLimiter.js      # Anti-spam API and GPS ingestion rate limiters
+│   ├── routes/
+│   │   ├── ingestion.js        # Traccar OsmAnd GPS ingestion endpoint
+│   │   ├── auth.js             # Google OAuth & device pairing routes
+│   │   ├── admin.js            # Admin management APIs (whitelist, devices, keys)
+│   │   ├── sessions.js         # Live session details, SSE stream & GPX export
+│   │   └── views.js            # HTML page routes
+│   └── services/
+│       ├── gpx.js              # GPX 1.1 trace generator for Strava/Garmin
+│       └── sse.js              # Server-Sent Events subscriber manager
+└── tests/
+    └── e2e.test.js             # End-to-end integration test suite
+```
+
+---
+
 ## 🚀 Quick Start with Docker & Caddy (Recommended for Production)
 
 ### 1. Clone & Configure Environment

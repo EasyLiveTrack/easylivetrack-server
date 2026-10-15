@@ -1,92 +1,8 @@
-const { DatabaseSync } = require('node:sqlite');
-const path = require('path');
 const crypto = require('crypto');
 const fs = require('fs');
-
-const DB_PATH = process.env.DB_PATH || path.join(__dirname, 'gpsbeacon.db');
-
-// Ensure parent directory exists (especially for /data in docker)
-const dbDir = path.dirname(DB_PATH);
-if (!fs.existsSync(dbDir)) {
-  fs.mkdirSync(dbDir, { recursive: true });
-}
-
-const db = new DatabaseSync(DB_PATH);
-
-// Enable foreign keys & WAL mode for performance
-db.exec('PRAGMA foreign_keys = ON;');
-
-// Initialize schema
-db.exec(`
-  CREATE TABLE IF NOT EXISTS users (
-    id TEXT PRIMARY KEY,
-    email TEXT UNIQUE,
-    name TEXT,
-    google_sub TEXT UNIQUE,
-    created_at INTEGER
-  );
-
-  CREATE TABLE IF NOT EXISTS devices (
-    id TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL,
-    api_key TEXT UNIQUE NOT NULL,
-    device_name TEXT,
-    created_at INTEGER,
-    last_seen INTEGER,
-    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS pairing_codes (
-    code TEXT PRIMARY KEY,
-    user_id TEXT NOT NULL,
-    api_key TEXT NOT NULL,
-    expires_at INTEGER NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS sessions (
-    id TEXT PRIMARY KEY,
-    user_id TEXT,
-    view_token TEXT NOT NULL,
-    active INTEGER DEFAULT 1,
-    start_time INTEGER,
-    last_update INTEGER,
-    FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE SET NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS points (
-    id INTEGER PRIMARY KEY AUTOINCREMENT,
-    session_id TEXT NOT NULL,
-    lat REAL NOT NULL,
-    lon REAL NOT NULL,
-    timestamp INTEGER NOT NULL,
-    altitude REAL,
-    speed REAL,
-    bearing REAL,
-    battery REAL,
-    FOREIGN KEY(session_id) REFERENCES sessions(id) ON DELETE CASCADE
-  );
-
-  CREATE TABLE IF NOT EXISTS admin_settings (
-    key TEXT PRIMARY KEY,
-    value TEXT NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS admin_sessions (
-    token TEXT PRIMARY KEY,
-    created_at INTEGER NOT NULL,
-    expires_at INTEGER NOT NULL
-  );
-
-  CREATE TABLE IF NOT EXISTS email_whitelist (
-    email TEXT PRIMARY KEY,
-    added_at INTEGER NOT NULL,
-    notes TEXT
-  );
-
-  CREATE INDEX IF NOT EXISTS idx_points_session_time ON points(session_id, timestamp);
-  CREATE INDEX IF NOT EXISTS idx_devices_api_key ON devices(api_key);
-  CREATE INDEX IF NOT EXISTS idx_sessions_user ON sessions(user_id);
-`);
+const db = require('./database');
+const config = require('../config');
+const { generateGpx: buildGpx } = require('../services/gpx');
 
 // Prepared statements
 const stmtGetUserByApiKey = db.prepare(`
@@ -138,20 +54,20 @@ const stmtInsertPairingCode = db.prepare(`
 `);
 
 const stmtGetPairingCode = db.prepare(`
-  SELECT * FROM pairing_codes WHERE code = ? AND expires_at >= ?
+  SELECT * FROM pairing_codes WHERE code = ? AND expires_at > ?
 `);
 
 const stmtDeletePairingCode = db.prepare(`
   DELETE FROM pairing_codes WHERE code = ?
 `);
 
-const stmtGetSession = db.prepare(`
-  SELECT * FROM sessions WHERE id = ?
+const stmtInsertSession = db.prepare(`
+  INSERT OR REPLACE INTO sessions (id, user_id, view_token, active, start_time, last_update)
+  VALUES (?, ?, ?, 1, ?, ?)
 `);
 
-const stmtInsertSession = db.prepare(`
-  INSERT INTO sessions (id, user_id, view_token, active, start_time, last_update)
-  VALUES (?, ?, ?, 1, ?, ?)
+const stmtGetSession = db.prepare(`
+  SELECT * FROM sessions WHERE id = ?
 `);
 
 const stmtUpdateSession = db.prepare(`
@@ -195,7 +111,7 @@ const stmtPruneOldPoints = db.prepare(`
   )
 `);
 
-// Admin and Whitelist statements
+// Admin & Settings statements
 const stmtGetSetting = db.prepare(`SELECT value FROM admin_settings WHERE key = ?`);
 const stmtSetSetting = db.prepare(`INSERT OR REPLACE INTO admin_settings (key, value) VALUES (?, ?)`);
 
@@ -236,7 +152,7 @@ const stmtCountTotalSessions = db.prepare(`SELECT COUNT(*) as count FROM session
 const stmtCountPoints = db.prepare(`SELECT COUNT(*) as count FROM points`);
 
 // -------------------------------------------------------------
-// Core Helper Functions
+// Helper Functions
 // -------------------------------------------------------------
 
 function generateApiKey() {
@@ -253,19 +169,18 @@ function hashPassword(password, salt) {
 
 function initAdminDefaults(envEmail, envPassword, envRegMode) {
   const currentEmail = stmtGetSetting.get('admin_email')?.value;
-  const adminEmail = (envEmail || currentEmail || 'admin@gpsbeacon.local').toLowerCase().trim();
+  const adminEmail = (envEmail || currentEmail || config.ADMIN_EMAIL).toLowerCase().trim();
 
   stmtSetSetting.run('admin_email', adminEmail);
 
   // Registration mode: 'whitelist' (default), 'open', or 'closed'
   const currentMode = stmtGetSetting.get('registration_mode')?.value;
   if (!currentMode) {
-    stmtSetSetting.run('registration_mode', envRegMode || 'whitelist');
+    stmtSetSetting.run('registration_mode', envRegMode || config.REGISTRATION_MODE);
   }
 
-  // Manage Admin Password:
-  // If no password set, or if an explicit envPassword changed from the last applied one, update it.
-  const targetPass = envPassword || 'admin12345';
+  // Manage Admin Password
+  const targetPass = envPassword || config.ADMIN_PASSWORD;
   const currentHash = stmtGetSetting.get('admin_password_hash')?.value;
   const lastAppliedEnvPass = stmtGetSetting.get('last_applied_env_pass')?.value;
 
@@ -275,7 +190,7 @@ function initAdminDefaults(envEmail, envPassword, envRegMode) {
     console.log(`[Admin Setup] Administrator password configured (email: ${adminEmail})`);
   }
 
-  // Always ensure the admin email is in the whitelist
+  // Ensure admin email is always in whitelist
   if (adminEmail) {
     stmtInsertWhitelist.run(adminEmail, Date.now(), 'Primary Administrator');
   }
@@ -553,8 +468,8 @@ function deleteSession(sessionId) {
 function getSystemStats() {
   let dbSizeBytes = 0;
   try {
-    if (fs.existsSync(DB_PATH)) {
-      dbSizeBytes = fs.statSync(DB_PATH).size;
+    if (fs.existsSync(config.DB_PATH)) {
+      dbSizeBytes = fs.statSync(config.DB_PATH).size;
     }
   } catch (e) {}
 
@@ -571,44 +486,10 @@ function getSystemStats() {
   };
 }
 
-/**
- * Generate standard GPX 1.1 XML string for Strava, Garmin, and GIS tools.
- */
 function generateGpx(sessionId) {
   const session = getSessionWithPoints(sessionId, 50000);
-  if (!session || !session.points || session.points.length === 0) return null;
-
-  const startTimeIso = new Date(session.startTime).toISOString();
-  let gpx = `<?xml version="1.0" encoding="UTF-8"?>
-<gpx version="1.1" creator="EasyLiveTrack" xmlns="http://www.topografix.com/GPX/1/1" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.topografix.com/GPX/1/1 http://www.topografix.com/GPX/1/1/gpx.xsd">
-  <metadata>
-    <name>EasyLiveTrack Session ${session.id}</name>
-    <time>${startTimeIso}</time>
-  </metadata>
-  <trk>
-    <name>Track ${session.id}</name>
-    <trkseg>
-`;
-
-  for (const p of session.points) {
-    const timeIso = new Date(p.timestamp).toISOString();
-    gpx += `      <trkpt lat="${p.lat.toFixed(6)}" lon="${p.lon.toFixed(6)}">\n`;
-    if (p.altitude !== null && p.altitude !== undefined) {
-      gpx += `        <ele>${p.altitude}</ele>\n`;
-    }
-    gpx += `        <time>${timeIso}</time>\n`;
-    if (p.speed !== null && p.speed !== undefined) {
-      const speedMs = (p.speed / 3.6).toFixed(2);
-      gpx += `        <speed>${speedMs}</speed>\n`;
-    }
-    gpx += `      </trkpt>\n`;
-  }
-
-  gpx += `    </trkseg>
-  </trk>
-</gpx>`;
-
-  return gpx;
+  if (!session) return null;
+  return buildGpx(session);
 }
 
 module.exports = {
