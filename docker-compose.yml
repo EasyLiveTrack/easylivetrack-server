@@ -4,7 +4,7 @@ services:
   # Application Service: EasyLiveTrack Node.js Server (Node 24 Alpine)
   gps-server:
     build: .
-    image: easylivetrack-server:latest
+    image: ghcr.io/easylivetrack/easylivetrack-server:latest
     container_name: easylivetrack-server
     restart: unless-stopped
     ports:
