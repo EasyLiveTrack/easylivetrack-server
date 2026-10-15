@@ -1,0 +1,34 @@
+# ==============================================================================
+# Caddyfile - EasyLiveTrack Reverse Proxy with Automatic HTTPS (Let's Encrypt)
+# ==============================================================================
+# Replace "gps.yourdomain.com" with your actual domain or subdomain in .env.
+# When adding other services to your VPS, simply append new reverse_proxy blocks below!
+
+{
+    # Optional: Enter your email for Let's Encrypt renewal notifications
+    # email your-email@example.com
+}
+
+# Service 1: EasyLiveTrack Server
+{$DOMAIN_NAME:localhost} {
+    reverse_proxy gps-server:5055 {
+        # Real-time SSE streaming without buffering
+        flush_interval -1
+    }
+
+    # Compression (zstd, gzip)
+    encode zstd gzip
+
+    # Access logs
+    log {
+        output stdout
+        format console
+    }
+}
+
+# ------------------------------------------------------------------------------
+# Example for adding OTHER SERVICES on the same VPS in the future:
+# ------------------------------------------------------------------------------
+# other-service.yourdomain.com {
+#     reverse_proxy other-container:8080
+# }

@@ -1,0 +1,338 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>EasyLiveTrack - Admin Dashboard</title>
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%22><text y=%2222%22 font-size=%2220%22>🛡️</text></svg>">
+  <style>
+    .admin-container {
+      max-width: 1050px;
+      margin: 30px auto;
+      padding: 0 20px;
+    }
+    .admin-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+    }
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .stat-box {
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+    }
+    .stat-number {
+      font-size: 2rem;
+      font-weight: 800;
+      color: var(--primary);
+    }
+    .stat-title {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      text-transform: uppercase;
+      margin-top: 4px;
+    }
+    .tabs-bar {
+      display: flex;
+      gap: 8px;
+      border-bottom: 1px solid var(--border);
+      margin-bottom: 24px;
+      overflow-x: auto;
+    }
+    .tab-btn {
+      background: none;
+      border: none;
+      color: var(--text-secondary);
+      padding: 12px 18px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      border-bottom: 3px solid transparent;
+      transition: all 0.2s;
+    }
+    .tab-btn.active {
+      color: var(--primary);
+      border-bottom-color: var(--primary);
+    }
+    .tab-content {
+      display: none;
+    }
+    .tab-content.active {
+      display: block;
+    }
+    .data-table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 12px;
+      font-size: 0.9rem;
+    }
+    .data-table th, .data-table td {
+      padding: 12px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .data-table th {
+      background: var(--surface-alt);
+      color: var(--text-secondary);
+      font-weight: 600;
+    }
+    .data-table tr:hover {
+      background: rgba(255,255,255,0.02);
+    }
+    .form-row {
+      display: flex;
+      gap: 12px;
+      flex-wrap: wrap;
+      margin-top: 12px;
+    }
+    .form-input {
+      background: var(--background);
+      border: 1px solid var(--border);
+      color: #fff;
+      padding: 10px 14px;
+      border-radius: 8px;
+      font-size: 0.9rem;
+      outline: none;
+      flex: 1;
+      min-width: 200px;
+    }
+    .form-input:focus {
+      border-color: var(--primary);
+    }
+    .badge {
+      display: inline-block;
+      padding: 4px 8px;
+      border-radius: 6px;
+      font-size: 0.75rem;
+      font-weight: 700;
+    }
+    .badge-green { background: rgba(0,230,118,0.2); color: #00E676; }
+    .badge-orange { background: rgba(255,179,0,0.2); color: #FFB300; }
+    .badge-red { background: rgba(255,82,82,0.2); color: #FF5252; }
+    .btn-danger { background: #d32f2f; color: #fff; }
+    .btn-danger:hover { background: #b71c1c; }
+    .btn-success { background: #00C853; color: #000; font-weight: 700; }
+    .btn-success:hover { background: #00E676; }
+    .pairing-box {
+      background: #1B2E24;
+      border: 1px solid #00E676;
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+      margin-top: 14px;
+      display: none;
+    }
+    .pairing-code {
+      font-size: 2.2rem;
+      font-weight: 800;
+      letter-spacing: 4px;
+      color: #00E676;
+      margin: 8px 0;
+    }
+    #loginView {
+      max-width: 400px;
+      margin: 80px auto;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Header -->
+  <header class="app-header">
+    <div class="logo-area">
+      <svg class="logo-icon" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7,-7.75 7,-13c0,-3.87 -3.13,-7 -7,-7zm0 9.5a2.5 2.5 0 0 1 0-5 2.5 2.5 0 0 1 0 5z"/>
+      </svg>
+      <span class="logo-title">EasyLiveTrack Server Admin</span>
+    </div>
+    <div class="header-actions">
+      <a href="/" class="btn" style="text-decoration:none;">🗺️ Live Map</a>
+      <button id="btnLogout" class="btn" style="display:none;">Sign Out</button>
+    </div>
+  </header>
+
+  <!-- Login Card (shown when unauthenticated) -->
+  <div id="loginView" class="admin-container">
+    <div class="admin-card">
+      <h2 style="margin-top:0;">🛡️ Administrator Login</h2>
+      <p style="color:var(--text-secondary); font-size:0.85rem;">Enter the administrator password configured in your environment or <code>.env</code> file.</p>
+      <form id="formLogin">
+        <div style="margin: 16px 0;">
+          <input type="password" id="inputPassword" class="form-input" placeholder="Admin Password" style="width:100%; box-sizing:border-box;" required autofocus>
+        </div>
+        <button type="submit" class="btn btn-primary" style="width:100%; padding:12px;">Sign In</button>
+        <p id="loginError" style="color:#FF5252; font-size:0.85rem; margin-top:12px; display:none;"></p>
+      </form>
+    </div>
+  </div>
+
+  <!-- Dashboard Container (shown when authenticated) -->
+  <div id="dashboardView" class="admin-container" style="display:none;">
+
+    <!-- System Stats Summary -->
+    <div class="stats-grid">
+      <div class="stat-box">
+        <div id="statDevices" class="stat-number">--</div>
+        <div class="stat-title">Active Devices</div>
+      </div>
+      <div class="stat-box">
+        <div id="statActiveSessions" class="stat-number">--</div>
+        <div class="stat-title">Live Sessions</div>
+      </div>
+      <div class="stat-box">
+        <div id="statPoints" class="stat-number">--</div>
+        <div class="stat-title">GPS Fix Points</div>
+      </div>
+      <div class="stat-box">
+        <div id="statDbSize" class="stat-number">--</div>
+        <div class="stat-title">Database Size</div>
+      </div>
+    </div>
+
+    <!-- Navigation Tabs -->
+    <div class="tabs-bar">
+      <button class="tab-btn active" data-tab="tabWhitelist">✉️ Email Whitelist</button>
+      <button class="tab-btn" data-tab="tabDevices">⌚ Devices & Keys</button>
+      <button class="tab-btn" data-tab="tabSessions">📍 Live Tracks & GPX</button>
+      <button class="tab-btn" data-tab="tabSecurity">🔑 Security</button>
+    </div>
+
+    <!-- TAB 1: Email Whitelist -->
+    <div id="tabWhitelist" class="tab-content active">
+      <div class="admin-card">
+        <h3>Access Control & Registration</h3>
+        <p style="color:var(--text-secondary); font-size:0.85rem;">
+          Control which Google accounts and athletes can connect devices and stream live tracking data.
+        </p>
+
+        <div style="margin: 16px 0; display:flex; align-items:center; gap:12px;">
+          <label style="font-weight:600;">Registration Mode:</label>
+          <select id="selectRegMode" class="form-input" style="max-width:240px;">
+            <option value="whitelist">Whitelist Only (Recommended)</option>
+            <option value="closed">Closed (Manual Admin Only)</option>
+            <option value="open">Open (Public Registration)</option>
+          </select>
+          <button id="btnSaveMode" class="btn btn-primary">Save Mode</button>
+        </div>
+
+        <hr style="border:0; border-top:1px solid var(--border); margin:20px 0;">
+
+        <h4>Add Email to Whitelist</h4>
+        <form id="formAddWhitelist" class="form-row">
+          <input type="email" id="inputNewEmail" class="form-input" placeholder="e.g. user@gmail.com" required>
+          <input type="text" id="inputNewNotes" class="form-input" placeholder="Optional notes (e.g. Galaxy Watch 7)">
+          <button type="submit" class="btn btn-primary">+ Authorize Email</button>
+        </form>
+
+        <h4 style="margin-top:24px;">Authorized Email Addresses</h4>
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Email Address</th>
+              <th>Added On</th>
+              <th>Notes</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="whitelistTableBody">
+            <tr><td colspan="4" style="text-align:center;">Loading whitelist...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 2: Devices & Pairing -->
+    <div id="tabDevices" class="tab-content">
+      <div class="admin-card">
+        <h3>Connected Devices & Smartwatches</h3>
+        <p style="color:var(--text-secondary); font-size:0.85rem;">
+          Manage registered phones and watches authorized to ingest GPS points.
+        </p>
+
+        <div style="margin: 16px 0;">
+          <button id="btnCreatePairing" class="btn btn-primary">🔢 Generate Pairing Code (6 digits)</button>
+        </div>
+
+        <div id="pairingBox" class="pairing-box">
+          <div>Pairing code for Smartwatch or Phone:</div>
+          <div id="pairingCodeVal" class="pairing-code">------</div>
+          <div style="font-size:0.8rem; color:#A7F3D0;">Type this code on the watch in Settings &gt; "Enter Pairing Code". Valid for 10 minutes.</div>
+        </div>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Device</th>
+              <th>Owner Email</th>
+              <th>API Key</th>
+              <th>Last Seen</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="devicesTableBody">
+            <tr><td colspan="5" style="text-align:center;">Loading devices...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 3: Sessions & GPX Export -->
+    <div id="tabSessions" class="tab-content">
+      <div class="admin-card">
+        <h3>Track Sessions & GPX Export</h3>
+        <p style="color:var(--text-secondary); font-size:0.85rem;">
+          Download standard GPX traces for Strava, Garmin Connect, and Komoot, or purge obsolete sessions.
+        </p>
+
+        <table class="data-table">
+          <thead>
+            <tr>
+              <th>Session ID</th>
+              <th>Owner</th>
+              <th>Fix Points</th>
+              <th>Start Time</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody id="sessionsTableBody">
+            <tr><td colspan="6" style="text-align:center;">Loading sessions...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- TAB 4: Admin Security -->
+    <div id="tabSecurity" class="tab-content">
+      <div class="admin-card">
+        <h3>Change Administrator Password</h3>
+        <p style="color:var(--text-secondary); font-size:0.85rem;">
+          Update the password used to access this dashboard.
+        </p>
+        <form id="formChangePassword" style="max-width:360px; margin-top:16px;">
+          <div style="margin-bottom:12px;">
+            <input type="password" id="inputNewPassword" class="form-input" placeholder="New Password (min 6 characters)" required style="width:100%; box-sizing:border-box;">
+          </div>
+          <button type="submit" class="btn btn-primary" style="width:100%;">Update Password</button>
+          <div id="passwordMsg" style="font-size:0.85rem; margin-top:8px;"></div>
+        </form>
+      </div>
+    </div>
+
+  </div>
+
+  <script src="/js/admin.js"></script>
+</body>
+</html>

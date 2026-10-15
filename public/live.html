@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>EasyLiveTrack - Real-Time GPS Tracking</title>
+  
+  <!-- Local Leaflet CSS (zero external CDN dependency) -->
+  <link rel="stylesheet" href="/vendor/leaflet/leaflet.css" />
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="/css/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%22><text y=%2222%22 font-size=%2220%22>📍</text></svg>">
+</head>
+<body>
+
+  <!-- Top Navigation Bar -->
+  <header class="app-header">
+    <div class="logo-area">
+      <svg class="logo-icon" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5a2.5 2.5 0 0 1 0-5 2.5 2.5 0 0 1 0 5z"/>
+      </svg>
+      <span class="logo-title">EasyLiveTrack</span>
+    </div>
+
+    <!-- Active Session Selector -->
+    <div class="session-picker">
+      <label for="sessionSelect" style="font-size: 0.75rem; color: #9e9e9e;">SESSION:</label>
+      <select id="sessionSelect">
+        <option value="">Waiting for connection...</option>
+      </select>
+      <span id="statusBadge" class="badge-live badge-waiting">
+        Waiting
+      </span>
+    </div>
+
+    <!-- Actions -->
+    <div class="header-actions">
+      <button id="btnSimulate" class="btn btn-primary" title="Start a simulated track to test the viewer">
+        ▶ Simulate Demo
+      </button>
+      <button id="btnFollow" class="btn" title="Lock camera on current position">
+        🎯 Follow
+      </button>
+      <button id="btnShare" class="btn" title="Copy shareable link to clipboard">
+        🔗 Share
+      </button>
+      <button id="btnHelp" class="btn" title="Traccar protocol instructions">
+        ℹ Info
+      </button>
+    </div>
+  </header>
+
+  <!-- Interactive Map Canvas (OpenStreetMap - 100% free, no API key required) -->
+  <div id="map"></div>
+
+  <!-- Waiting banner when no points received yet -->
+  <div id="waitingBanner" class="waiting-banner">
+    <span>📡 Waiting for first GPS fix from watch, or click <strong>"▶ Simulate Demo"</strong> above.</span>
+  </div>
+
+  <!-- Floating HUD Metrics Overlay -->
+  <section class="metrics-overlay" id="metricsCard">
+    <div class="metrics-grid">
+      <div class="metric-item">
+        <span class="metric-label">Speed</span>
+        <div class="metric-value">
+          <span id="valSpeed">--</span><span class="metric-unit">km/h</span>
+        </div>
+      </div>
+
+      <div class="metric-item">
+        <span class="metric-label">Distance</span>
+        <div class="metric-value">
+          <span id="valDistance">0.00</span><span class="metric-unit">km</span>
+        </div>
+      </div>
+
+      <div class="metric-item">
+        <span class="metric-label">Altitude</span>
+        <div class="metric-value">
+          <span id="valAltitude">--</span><span class="metric-unit">m</span>
+        </div>
+      </div>
+
+      <div class="metric-item">
+        <span class="metric-label">Watch Battery</span>
+        <div class="metric-value">
+          <span id="valBattery">--</span><span class="metric-unit">%</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="metrics-footer">
+      <span id="valDuration">Time: 00:00:00</span>
+      <span id="valSessionId">ID: --</span>
+      <span id="valLastUpdate">Last fix: Waiting...</span>
+    </div>
+  </section>
+
+  <!-- Info Modal -->
+  <div id="infoModal" class="modal-overlay">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h2>📡 Server & Tracking Protocol</h2>
+        <button class="modal-close" id="btnCloseModal">&times;</button>
+      </div>
+      <div class="modal-body">
+        <p><strong>100% Free Map Layers:</strong> Powered by <em>OpenStreetMap</em>, <em>OpenTopoMap</em>, and <em>Esri Satellite</em> with zero third-party API keys required.</p>
+        <p><strong>Security & Spam Protection:</strong> GPS ingestion requires a valid API key. Only authorized devices can transmit data:</p>
+        <pre><code>GET http://&lt;SERVER_IP&gt;:5055/?id={sessionId}&key={apiKey}&token={viewToken}&lat={lat}&lon={lon}&speed={speed}&batt={batt}</code></pre>
+        <p>or via HTTP POST with <code>Authorization: Bearer {apiKey}</code>.</p>
+        <p>Live viewer links contain a read-only token:</p>
+        <pre><code>http://&lt;SERVER_IP&gt;:5055/live/{sessionId}?token={viewToken}</code></pre>
+        <p style="font-size: 0.8rem; color: #78909c;">Note: When tracking outdoors via LTE cellular networks, ensure the server domain or public IP is reachable over the internet.</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Local Leaflet JS -->
+  <script src="/vendor/leaflet/leaflet.js"></script>
+  <!-- Live Viewer Controller -->
+  <script src="/js/viewer.js"></script>
+</body>
+</html>

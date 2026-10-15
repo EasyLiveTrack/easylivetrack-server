@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  # Application Service: EasyLiveTrack Node.js Server (Node 24 Alpine)
+  gps-server:
+    build: .
+    image: easylivetrack-server:latest
+    container_name: easylivetrack-server
+    restart: unless-stopped
+    ports:
+      # Expose port 5055 directly (useful for local testing or direct proxying)
+      - "5055:5055"
+    environment:
+      - PORT=5055
+      - NODE_ENV=production
+      - DB_PATH=/data/gpsbeacon.db
+      - ADMIN_EMAIL=${ADMIN_EMAIL:-admin@easylivetrack.local}
+      - ADMIN_PASSWORD=${ADMIN_PASSWORD:-admin12345}
+      - REGISTRATION_MODE=${REGISTRATION_MODE:-whitelist}
+      - GOOGLE_CLIENT_ID=${GOOGLE_CLIENT_ID:-}
+    volumes:
+      # Persistent volume: user accounts, sessions, and points are preserved across container updates
+      - gps-data:/data
+    networks:
+      - vps-net
+
+  # Reverse Proxy: Caddy with automatic SSL certificates via Let's Encrypt and HTTP/3 support
+  caddy:
+    image: caddy:2-alpine
+    container_name: easylivetrack-caddy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp" # Enables high-performance HTTP/3 (QUIC) for mobile devices
+    environment:
+      - DOMAIN_NAME=${DOMAIN_NAME:-localhost}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
+    depends_on:
+      - gps-server
+    networks:
+      - vps-net
+
+volumes:
+  gps-data:
+  caddy-data:
+  caddy-config:
+
+networks:
+  vps-net:
+    name: vps-shared-network

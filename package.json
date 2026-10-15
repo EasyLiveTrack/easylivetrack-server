@@ -1,0 +1,16 @@
+{
+  "name": "easylivetrack-server",
+  "version": "1.0.0",
+  "description": "EasyLiveTrack - Traccar/OsmAnd compatible LiveTrack server with real-time web map viewer and admin panel",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test-server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.19.2",
+    "express-rate-limit": "^8.7.1",
+    "google-auth-library": "^11.3.0"
+  }
+}
